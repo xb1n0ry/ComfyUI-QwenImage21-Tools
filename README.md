@@ -98,3 +98,7 @@ Without a connected latent, the scheduler assumes a 1024 × 1024 image.
 ## Status
 
 Experimental. Results may vary across resolutions, samplers, step counts, LoRAs, and model variants. Settings and behavior may change as testing continues. Feedback and comparisons are welcome.
+
+## License
+
+This node package is licensed under the [MIT License](LICENSE). Referenced third-party code and model weights retain their respective licenses.
