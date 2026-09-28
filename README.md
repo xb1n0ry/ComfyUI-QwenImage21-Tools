@@ -87,7 +87,7 @@ Requires a ComfyUI installation with Qwen Image 2.1 support and the appropriate 
 
 1. Set the width, height, and batch size in **Qwen Image 2.1 Empty Latent**.
 2. Connect its `latent` output to both the scheduler's `latent` input and your sampler's `latent_image` input.
-3. Connect the scheduler's `sigmas` output to **SamplerCustom** or **SamplerCustomAdvanced**, alongside your usual model, conditioning, and sampler connections.
+3. Connect the scheduler's `sigmas` output to **SamplerCustom**, **SamplerCustomAdvanced** or **ClownsharKSampler** alongside your usual model, conditioning, and sampler connections.
 
 Sampler choice, step count, CFG, LoRA strength, and scheduler settings are left open for experimentation. The defaults are a starting point, not a claim of the best settings for every workflow.
 
