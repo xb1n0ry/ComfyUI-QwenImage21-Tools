@@ -74,7 +74,7 @@ This applies a fixed shift close to the 1024 × 1024 value. It does not calculat
 
 ## Included nodes
 
-- **Qwen Image 2.1 Dynamic Scheduler** — generates a resolution-aware sigma schedule for use with **SamplerCustom** or **SamplerCustomAdvanced**, with adjustable shift settings.
+- **Qwen Image 2.1 Dynamic Scheduler** — generates a resolution-aware sigma schedule for use with **SamplerCustom**, **SamplerCustomAdvanced** or **ClownsharKSampler** with adjustable shift settings.
 - **Qwen Image 2.1 Empty Latent** — prepares a starting latent in the format Qwen Image 2.1 needs, at your chosen size and batch count. Dimensions are rounded down to multiples of 32; the node reports the resulting dimensions.
 
 ## Installation
