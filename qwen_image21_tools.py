@@ -46,7 +46,7 @@ class QwenImage21EmptyLatent:
                 "width": (
                     "INT",
                     {
-                        "default": 1024,
+                        "default": 2048,
                         "min": QWEN21_PIXEL_MULTIPLE,
                         "max": 16384,
                         "step": QWEN21_PIXEL_MULTIPLE,
@@ -61,7 +61,7 @@ class QwenImage21EmptyLatent:
                 "height": (
                     "INT",
                     {
-                        "default": 1024,
+                        "default": 2048,
                         "min": QWEN21_PIXEL_MULTIPLE,
                         "max": 16384,
                         "step": QWEN21_PIXEL_MULTIPLE,
