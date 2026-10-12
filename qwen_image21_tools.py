@@ -20,6 +20,18 @@ QWEN21_PIXEL_MULTIPLE = 32
 # 64 * 64 = 4096
 DEFAULT_SEQ_LEN = 4096
 
+TURBO_8STEP_SIGMAS = (
+    1.0,
+    0.978453,
+    0.954180,
+    0.926626,
+    0.895080,
+    0.845148,
+    0.704534,
+    0.414568,
+    0.0,
+)
+
 
 # -----------------------------------------------------------------------------
 # Qwen Image 2.1 Empty Latent
@@ -809,16 +821,39 @@ class QwenImage21DynamicScheduler:
 
 
 # -----------------------------------------------------------------------------
+# Qwen Image 2.1 Turbo Scheduler
+# -----------------------------------------------------------------------------
+
+class QwenImage21TurboScheduler:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {}}
+
+    RETURN_TYPES = ("SIGMAS",)
+    RETURN_NAMES = ("sigmas",)
+
+    FUNCTION = "get_sigmas"
+    CATEGORY = "Qwen Image 2.1/Sampling"
+
+    DESCRIPTION = "Returns the fixed eight-step Qwen Image 2.1 Turbo sigma schedule."
+
+    def get_sigmas(self):
+        return (torch.tensor(TURBO_8STEP_SIGMAS, dtype=torch.float32, device="cpu"),)
+
+
+# -----------------------------------------------------------------------------
 # ComfyUI registration
 # -----------------------------------------------------------------------------
 
 NODE_CLASS_MAPPINGS = {
     "QwenImage21EmptyLatent": QwenImage21EmptyLatent,
     "QwenImage21DynamicScheduler": QwenImage21DynamicScheduler,
+    "QwenImage21TurboScheduler": QwenImage21TurboScheduler,
 }
 
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "QwenImage21EmptyLatent": "Qwen Image 2.1 Empty Latent",
     "QwenImage21DynamicScheduler": "Qwen Image 2.1 Dynamic Scheduler",
+    "QwenImage21TurboScheduler": "Qwen Image 2.1 Turbo Scheduler",
 }

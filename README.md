@@ -1,6 +1,6 @@
 # ComfyUI Qwen Image 2.1 Tools
 
-Two custom ComfyUI nodes for Qwen Image 2.1 resolution-aware sigma scheduling and latent creation.
+Three custom ComfyUI nodes for Qwen Image 2.1 dynamic scheduling, fixed Turbo scheduling, and latent creation.
 
 ## Why these exist
 
@@ -75,6 +75,7 @@ This applies a fixed shift close to the 1024 × 1024 value. It does not calculat
 ## Included nodes
 
 - **Qwen Image 2.1 Dynamic Scheduler** — generates a resolution-aware sigma schedule for use with **SamplerCustom**, **SamplerCustomAdvanced** or **ClownsharKSampler** with adjustable shift settings.
+- **Qwen Image 2.1 Turbo Scheduler** — returns the fixed eight-step schedule for Qwen Image 2.1 Turbo, with no inputs or resolution-dependent adjustments. Found under **Qwen Image 2.1/Sampling**.
 - **Qwen Image 2.1 Empty Latent** — prepares a starting latent in the format Qwen Image 2.1 needs, at your chosen size and batch count. Dimensions are rounded down to multiples of 32; the node reports the resulting dimensions.
 
 ## Installation
@@ -83,7 +84,7 @@ Place this folder in `ComfyUI/custom_nodes/ComfyUI-QwenImage21-Tools` and restar
 
 Requires a ComfyUI installation with Qwen Image 2.1 support and the appropriate models. This package adds no extra Python dependencies or model downloads.
 
-## Basic use
+## Basic use (standard Qwen Image 2.1)
 
 1. Set the width, height, and batch size in **Qwen Image 2.1 Empty Latent**.
 2. Connect its `latent` output to both the scheduler's `latent` input and your sampler's `latent_image` input.
@@ -94,6 +95,41 @@ Sampler choice, step count, CFG, LoRA strength, and scheduler settings are left 
 For image editing, use the latent from **Text Encode Qwen Image 2.1** for both the scheduler and sampler to retain the reference image's output size.
 
 Without a connected latent, the scheduler assumes a 1024 × 1024 image.
+
+## Qwen Image 2.1 Turbo
+
+Use the separate **Qwen Image 2.1 Turbo Scheduler** with **Qwen Image 2.1 Turbo**. Unlike the standard dynamic scheduler, it has no configurable inputs and applies no shifting or terminal stretching. Each execution returns a fresh one-dimensional CPU `torch.float32` tensor:
+
+```text
+[1.0, 0.978453, 0.954180, 0.926626, 0.895080, 0.845148, 0.704534, 0.414568, 0.0]
+```
+
+The first eight values match the official model's [configured sampling sigmas](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/blob/main/model_index.json). The final zero completes the eighth denoising transition, giving nine sigma values for eight steps. The [Turbo scheduler configuration](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/blob/main/scheduler/scheduler_config.json) disables dynamic shifting and terminal stretching and uses an identity static shift of `1.0`. Diffusers appends the same terminal zero.
+
+Recommended baseline:
+
+| Setting | Value |
+| --- | --- |
+| Model | Qwen Image 2.1 Turbo |
+| Scheduler | Qwen Image 2.1 Turbo Scheduler |
+| Sampler | Euler |
+| Steps | 8, determined by the fixed sigma sequence |
+| CFG | 1.0 |
+| Dynamic shifting | Disabled |
+| Terminal stretching | Disabled |
+
+Example connections to **SamplerCustomAdvanced**:
+
+1. Connect **Qwen Image 2.1 Turbo Scheduler** → `sigmas` to **SamplerCustomAdvanced** → `sigmas`.
+2. Select `euler` in **KSamplerSelect** and connect its `sampler` output to the sampler's `sampler` input.
+3. Connect a **CFGGuider** configured with the Turbo model, conditioning, and CFG `1.0` to `guider`.
+4. Connect your noise source to `noise` and a compatible Qwen Image 2.1 latent to `latent_image`.
+
+The Turbo node produces only sigmas. Sampler and guidance configuration belong to the surrounding workflow; the node does not configure Euler or CFG automatically. Its `SIGMAS` output also works with **SamplerCustom** and other compatible custom sampling nodes. Do not pass it through another scheduler or append another zero.
+
+## Tests
+
+Run `python -B -m unittest discover -s tests -v` from this folder. Tests require PyTorch, use CPU tensors, and stub ComfyUI device helpers; no model loading or GPU inference is needed.
 
 ## Status
 
