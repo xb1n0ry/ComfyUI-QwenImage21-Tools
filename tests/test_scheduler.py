@@ -132,6 +132,60 @@ class SchedulerTests(unittest.TestCase):
                             expected = torch.cat((expected.float(), torch.zeros(1)))
                             torch.testing.assert_close(sigmas, expected, rtol=1e-6, atol=1e-7)
 
+    def test_generic_empty_latent_matches_native_schedule(self):
+        defaults = {
+            name: definition[1]["default"]
+            for name, definition in self.dynamic.INPUT_TYPES()["required"].items()
+        }
+        for source_shape, target_shape, source_scale in (
+            ((1, 4, 128, 128), (1, 64, 64, 64), 8),
+            ((2, 4, 128, 192), (2, 64, 64, 96), 8),
+            ((1, 4, 65, 67), (1, 64, 32, 34), 8),
+            ((1, 4, 66, 70), (1, 64, 33, 35), 8),
+            ((1, 64, 128, 128), (1, 64, 64, 64), 8),
+            ((1, 4, 64, 64), (1, 64, 64, 64), 16),
+        ):
+            for masked in (False, True):
+                with self.subTest(shape=source_shape, scale=source_scale, masked=masked):
+                    samples = torch.zeros(source_shape)
+                    latent = {"samples": samples, "downscale_ratio_spacial": source_scale}
+                    mask = torch.ones(1, 1, 32, 32)
+                    if masked:
+                        latent["noise_mask"] = mask
+                    expected = self.dynamic().get_sigmas(
+                        **defaults, latent={"samples": torch.zeros(target_shape)},
+                    )
+                    actual = self.dynamic().get_sigmas(**defaults, latent=latent)
+                    torch.testing.assert_close(actual[0], expected[0], rtol=0, atol=0)
+                    self.assertEqual(actual[1:], expected[1:])
+                    self.assertEqual(actual[2], target_shape[-2] * target_shape[-1])
+                    self.assertIs(latent["samples"], samples)
+                    self.assertEqual(tuple(samples.shape), source_shape)
+                    self.assertEqual(torch.count_nonzero(samples).item(), 0)
+                    self.assertEqual(latent["downscale_ratio_spacial"], source_scale)
+                    if masked:
+                        self.assertIs(latent["noise_mask"], mask)
+                        self.assertTrue(torch.all(mask == 1).item())
+
+    def test_generic_latent_requires_empty_samples_and_scale(self):
+        samples = torch.zeros(1, 4, 128, 128)
+        with self.assertRaisesRegex(ValueError, "require.*downscale_ratio_spacial"):
+            self.dynamic._get_seq_len({"samples": samples})
+        for scale in (0, -8, float("nan"), float("inf"), "invalid"):
+            with self.subTest(scale=scale), self.assertRaisesRegex(ValueError, "downscale_ratio_spacial"):
+                self.dynamic._get_seq_len({"samples": samples, "downscale_ratio_spacial": scale})
+        samples[0, 0, 0, 0] = 1
+        with self.assertRaisesRegex(ValueError, "Encode the source image"):
+            self.dynamic._get_seq_len({"samples": samples, "downscale_ratio_spacial": 8})
+
+    def test_native_encoded_latent_uses_its_existing_grid(self):
+        samples = torch.ones(1, 64, 33, 35)
+        for scale in (None, 8, 16):
+            with self.subTest(scale=scale):
+                self.assertEqual(self.dynamic._get_seq_len({
+                    "samples": samples, "downscale_ratio_spacial": scale,
+                }), 33 * 35)
+
     def test_existing_interfaces_and_latent(self):
         self.assertEqual(self.dynamic.RETURN_TYPES, ("SIGMAS", "FLOAT", "INT"))
         self.assertEqual(self.dynamic.RETURN_NAMES, ("sigmas", "mu", "seq_len"))

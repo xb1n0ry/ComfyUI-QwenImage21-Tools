@@ -189,8 +189,8 @@ class QwenImage21DynamicScheduler:
     """
     Resolution-aware sigma scheduler for Qwen Image 2.1.
 
-    The target image sequence length is calculated from the supplied native
-    Qwen 2.1 latent:
+    The target image sequence length is calculated from the native Qwen 2.1
+    spatial grid, accounting for generic empty-latent downscale metadata:
 
         seq_len = latent_height * latent_width
 
@@ -342,8 +342,8 @@ class QwenImage21DynamicScheduler:
                     "LATENT",
                     {
                         "tooltip": (
-                            "Native Qwen Image 2.1 target latent. "
-                            "Expected shape: [batch, 64, height, width]. "
+                            "Native Qwen Image 2.1 target latent or a generic "
+                            "empty latent with spatial downscale metadata. "
                             "Only target image spatial tokens are counted; "
                             "text and reference-image tokens are not included."
                         ),
@@ -387,7 +387,7 @@ class QwenImage21DynamicScheduler:
     @staticmethod
     def _get_seq_len(latent):
         """
-        Extract the target image sequence length from a native Qwen 2.1 latent.
+        Extract the target image sequence length in the native Qwen 2.1 grid.
 
         Qwen Image 2.1 consumes the spatial latent grid directly, so:
 
@@ -436,30 +436,35 @@ class QwenImage21DynamicScheduler:
                 "Qwen Image 2.1 Scheduler: latent batch dimension is empty."
             )
 
-        if channels != QWEN21_LATENT_CHANNELS:
-            raise ValueError(
-                "Qwen Image 2.1 Scheduler: expected a native Qwen Image 2.1 "
-                f"latent with {QWEN21_LATENT_CHANNELS} channels, but received "
-                f"{channels}. Use 'Qwen Image 2.1 Empty Latent' or the latent "
-                "output from the Qwen Image 2.1 conditioning node instead of "
-                "the generic Empty Latent Image."
-            )
+        if channels < 1:
+            raise ValueError("Qwen Image 2.1 Scheduler: latent channel dimension is empty.")
+
+        source_scale = latent.get("downscale_ratio_spacial")
+        if channels != QWEN21_LATENT_CHANNELS or source_scale not in (None, QWEN21_VAE_SCALE_FACTOR):
+            is_empty = torch.count_nonzero(samples).item() == 0
+            if channels != QWEN21_LATENT_CHANNELS and not is_empty:
+                raise ValueError(
+                    "Qwen Image 2.1 Scheduler: nonempty latents must have 64 channels. "
+                    "Encode the source image with the Qwen Image 2.1 VAE."
+                )
+            if is_empty:
+                if source_scale is None:
+                    raise ValueError(
+                        "Qwen Image 2.1 Scheduler: generic empty latents require "
+                        "'downscale_ratio_spacial' metadata. Use Empty Latent Image "
+                        "from a current ComfyUI or Qwen Image 2.1 Empty Latent."
+                    )
+                source_scale = QwenImage21DynamicScheduler._validate_finite("downscale_ratio_spacial", source_scale)
+                if source_scale <= 0:
+                    raise ValueError("Qwen Image 2.1 Scheduler: downscale_ratio_spacial must be positive.")
+                # Match comfy.sample.fix_empty_latent_channels without resizing samples.
+                ratio = source_scale / QWEN21_VAE_SCALE_FACTOR
+                height, width = round(height * ratio), round(width * ratio)
 
         if height < 1 or width < 1:
             raise ValueError(
                 "Qwen Image 2.1 Scheduler: latent spatial dimensions must "
                 f"be positive, but received {width}x{height}."
-            )
-
-        # Official Qwen Image 2.1 pixel dimensions are aligned to 32.
-        # With a 16x VAE, this means the latent H/W should be even.
-        if height % 2 != 0 or width % 2 != 0:
-            raise ValueError(
-                "Qwen Image 2.1 Scheduler: native Qwen 2.1 latent width and "
-                "height should be even, corresponding to output dimensions "
-                "divisible by 32. Received latent size "
-                f"{width}x{height}, corresponding to approximately "
-                f"{width * 16}x{height * 16} pixels."
             )
 
         seq_len = int(height) * int(width)

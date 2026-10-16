@@ -92,7 +92,17 @@ Requires a ComfyUI installation with Qwen Image 2.1 support and the appropriate 
 
 Sampler choice, step count, CFG, LoRA strength, and scheduler settings are left open for experimentation. The defaults are a starting point, not a claim of the best settings for every workflow.
 
-For image editing, use the latent from **Text Encode Qwen Image 2.1** for both the scheduler and sampler to retain the reference image's output size.
+For reference-based image editing, use the latent from **Text Encode Qwen Image 2.1** for both the scheduler and sampler. This is an empty starting latent sized to the first resized reference image, not an encoding of the source image.
+
+The dynamic scheduler also accepts generic **Empty Latent Image** outputs with `downscale_ratio_spacial` metadata. It calculates the Qwen grid using the same spatial scaling and rounding as ComfyUI's sampler. For example, a 1024 × 1024 generic empty latent has a 128 × 128 grid at scale 8; the scheduler uses the equivalent 64 × 64 Qwen grid (4096 tokens). The input tensor is not modified. Custom samplers must support ComfyUI's empty-latent conversion.
+
+### Masks and inpainting
+
+**Set Latent Noise Mask** works with either supported empty latent or a native Qwen latent. Connect its output to both the scheduler and sampler; adding the mask does not change the latent's channels or spatial metadata.
+
+For masked inpainting with the source image as the starting content, encode the image using **VAE Encode** with the Qwen Image 2.1 VAE, then apply **Set Latent Noise Mask**. An empty latent, including the Qwen conditioning node's latent output, does not contain the source image to preserve outside the mask. Nonempty latents from other model formats are not converted.
+
+The scheduler accepts odd spatial grid dimensions supported by ComfyUI's Qwen model. The included empty latent node still rounds requested pixel dimensions down to multiples of 32.
 
 Without a connected latent, the scheduler assumes a 1024 × 1024 image.
 
