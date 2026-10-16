@@ -137,10 +137,6 @@ Example connections to **SamplerCustomAdvanced**:
 
 The Turbo node produces only sigmas. Sampler and guidance configuration belong to the surrounding workflow; the node does not configure Euler or CFG automatically. Its `SIGMAS` output also works with **SamplerCustom** and other compatible custom sampling nodes. Do not pass it through another scheduler or append another zero.
 
-## Tests
-
-Run `python -B -m unittest discover -s tests -v` from this folder. Tests require PyTorch, use CPU tensors, and stub ComfyUI device helpers; no model loading or GPU inference is needed.
-
 ## Status
 
 Experimental. Results may vary across resolutions, samplers, step counts, LoRAs, and model variants. Settings and behavior may change as testing continues. Feedback and comparisons are welcome.
